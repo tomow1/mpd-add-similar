@@ -1,0 +1,21 @@
+Installation
+==================
+
+  Requirements
+  ------------
+
+    * python (2.6)
+    * python-pylast (>0.4)
+    * python-mpd
+
+  Installation
+  ------------
+
+    To install, perform the following command as root:
+
+      $ python setup.py install
+
+  Running
+  -------
+    
+    Run `mpd-add-similar -h` from a terminal to see the help message.

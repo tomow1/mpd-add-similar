@@ -1,0 +1,24 @@
+#! /usr/bin/python
+
+import mpdaddsimilar
+import optparse
+
+def main():
+    parser = optparse.OptionParser(
+                usage = "%prog [OPTIONS]",
+                description = "Adds similar tracks to your MPD playlist",
+                version = "0.1\nWritten by: Tom Wood adapted from work by Amr Hassan <amr.hassan@gmail.com>"
+                )
+    
+    parser.add_option("-a", "--artist", dest="artist", help="add top tracks from ARTIST", metavar="ARTIST")
+    parser.add_option("-q", "--quantity", type="int", help="how many tracks to add per existing track [default=%default]", default=15)
+    parser.add_option("-l", "--position-last", help="put the new tracks at the end of the playlist", action="store_false", dest="relative_position")
+    parser.add_option("", "--position-relative", help="put the new tracks after their respective similars [default]", action="store_true", dest="relative_position", default=True)
+    (options, args) = parser.parse_args()
+    
+    print "Computing (it might take a few moments)..."
+    mpdaddsimilar.mpd_connect()
+    q = mpdaddsimilar.add_top_tracks(options.artist, options.quantity, options.relative_position)
+    print "All done. Added %d tracks." %q
+
+main()

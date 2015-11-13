@@ -17,7 +17,7 @@
 #       MA 02110-1301, USA.
 
 
-import mpd, pylast, os
+import mpd, pylast, random, os
 
 ###
 ### A Track is represented as a dictionary holding all the track attributes, with
@@ -35,7 +35,7 @@ def Track(artist, title, **kwargs):
     
     return d
 
-_lastfm = pylast.get_lastfm_network(api_key="a34d5cb350c517917977f94c59db14ad", api_secret="e9fcde5ba6c555679f8514c322ff4bc9")
+_lastfm = pylast.get_lastfm_network(api_key="dfa3901334ad611f9c298cd9a2501156", api_secret="fc74834154a00f641e75417c08819884")
 _mpd_client = mpd.MPDClient()
 
 # Guess default values
@@ -69,6 +69,30 @@ def _get_similar_tracks(track):
     
     return l
 
+def _get_similar_artists(artist):
+    """
+        Returns a sequence of artists
+    """
+
+    l = []
+    for artist in _lastfm.get_artist(artist).get_similar():
+        artist = artist.item
+        l.append(artist.get_name())
+
+    return l
+
+def _get_top_tracks(artist, limit):
+    """
+        Returns a sequence of tracks
+    """
+
+    l = []
+    for track in _lastfm.get_artist(artist).get_top_tracks(limit=limit):
+        track = track.item
+        l.append({"artist": track.get_artist().get_name(), "title": track.get_title()})
+    
+    return l
+
 def _mpd_lookup_track(track):
     """
         Returns a sequence of MPD URIs
@@ -80,6 +104,19 @@ def _mpd_lookup_track(track):
     for match in _mpd_client.find(*args) + _mpd_client.search(*args):
         hits.append(match["file"])
     
+    return hits
+
+def _mpd_lookup_artist_tracks(artist):
+    """
+        Returns a sequence of MPD URIs
+    """
+
+    args = ["artist", artist.encode("utf-8")]
+    hits = []
+
+    for match in _mpd_client.search(*args):
+        hits.append(match["file"])
+
     return hits
 
 def _mpd_get_playlist(position=None):
@@ -198,6 +235,81 @@ def add_similar_tracks(position_or_range = ":", howmany=5, relative_positions=Tr
             normal_buffer += [uri]
         added += 1
     
+    if added < howmany:
+        
+        print added
+        artist = _mpd_get_playlist(position)[0]["artist"]
+        artists = [artist]
+        artists.extend(_get_similar_artists(artist))
+        
+        songs = []
+        for a in artists:
+            uris = _mpd_lookup_artist_tracks(artist)
+            songs.extend(uris)
+        
+        random.shuffle(songs)
+        
+        for song in songs:
+            if added >= howmany: break
+            # check to see if it's already added
+            if _is_track_added(song): continue
+            # add it to the buffer
+            if relative_positions:
+                relative_buffer[position+added+1] = song
+            else:
+                normal_buffer += [song]
+            added += 1
+        
+        print added
+    
+    # add tracks from buffer
+    _mpd_client.command_list_ok_begin()
+
+    if relative_positions:
+        keys = relative_buffer.keys()
+        keys.sort()
+        for key in keys:
+            _mpd_add_track(relative_buffer[key], key)
+    else:
+        for uri in normal_buffer:
+            _mpd_add_track(uri)
+    
+    _mpd_client.command_list_end()
+    
+    return added
+
+def add_top_tracks(artist, howmany=15, relative_positions=True):
+    print artist
+    added = 0
+    relative_buffer = {}
+    normal_buffer = []
+    position = 0
+    if relative_positions:
+        position = _mpd_current_playlist_position()
+    else:
+        position = get_playlist_length()
+        
+    for track in _get_top_tracks(artist, howmany*2):
+	print track
+        
+        if added >= howmany: break
+        
+        # look up track
+        uris = _mpd_lookup_track(track)
+        if not uris: continue
+        
+        # check to see if it's already added
+        uri = uris[0]
+        if _is_track_added(uri): continue
+        
+        # add it to the buffer
+        if relative_positions:
+            relative_buffer[position+added+1] = uri
+        else:
+            normal_buffer += [uri]
+        
+        added += 1
+
     # add tracks from buffer
     _mpd_client.command_list_ok_begin()
 

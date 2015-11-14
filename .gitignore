@@ -44,3 +44,4 @@ Temporary Items
 
 # Build directory
 /build/
+*.pyc
